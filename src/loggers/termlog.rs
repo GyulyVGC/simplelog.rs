@@ -74,10 +74,9 @@ impl TerminalMode {
 }
 
 /// Possible target streams
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum Target {
     /// Use Stdout
-    #[default]
     Stdout,
     /// Use Stderr
     Stderr,
