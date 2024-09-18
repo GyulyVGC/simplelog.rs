@@ -28,12 +28,17 @@ pub enum TerminalMode {
     /// Use Stderr for Errors and Stdout otherwise
     #[default]
     Mixed,
-    /// Use custom streams
+    /// Use custom output streams
     Custom {
+        /// Stream for Error logs
         error: Target,
+        /// Stream for Warning logs
         warn: Target,
+        /// Stream for Info logs
         info: Target,
+        /// Stream for Debug logs
         debug: Target,
+        /// Stream for Trace logs
         trace: Target,
     },
 }
