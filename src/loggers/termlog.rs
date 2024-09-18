@@ -19,20 +19,63 @@ struct OutputStreams {
 }
 
 /// Specifies which streams should be used when logging
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
 pub enum TerminalMode {
     /// Only use Stdout
     Stdout,
     /// Only use Stderr
     Stderr,
     /// Use Stderr for Errors and Stdout otherwise
+    #[default]
     Mixed,
+    /// Use custom streams
+    Custom {
+        error: Target,
+        warn: Target,
+        info: Target,
+        debug: Target,
+        trace: Target,
+    },
 }
 
-impl Default for TerminalMode {
-    fn default() -> TerminalMode {
-        TerminalMode::Mixed
+impl TerminalMode {
+    /// Returns the target stream for the given log level
+    fn target(&self, level: Level) -> Target {
+        match self {
+            TerminalMode::Stdout => Target::Stdout,
+            TerminalMode::Stderr => Target::Stderr,
+            TerminalMode::Mixed => {
+                if level == Level::Error {
+                    Target::Stderr
+                } else {
+                    Target::Stdout
+                }
+            }
+            TerminalMode::Custom {
+                error,
+                warn,
+                info,
+                debug,
+                trace,
+            } => match level {
+                Level::Error => *error,
+                Level::Warn => *warn,
+                Level::Info => *info,
+                Level::Debug => *debug,
+                Level::Trace => *trace,
+            },
+        }
     }
+}
+
+/// Possible target streams
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
+pub enum Target {
+    /// Use Stdout
+    #[default]
+    Stdout,
+    /// Use Stderr
+    Stderr,
 }
 
 /// The TermLogger struct. Provides a stderr/out based Logger implementation
@@ -42,6 +85,7 @@ pub struct TermLogger {
     level: LevelFilter,
     config: Config,
     streams: Mutex<OutputStreams>,
+    mode: TerminalMode,
 }
 
 impl TermLogger {
@@ -113,7 +157,7 @@ impl TermLogger {
                 err: BufferedStandardStream::stderr(color_choice),
                 out: BufferedStandardStream::stderr(color_choice),
             },
-            TerminalMode::Mixed => OutputStreams {
+            TerminalMode::Mixed | TerminalMode::Custom { .. } => OutputStreams {
                 err: BufferedStandardStream::stderr(color_choice),
                 out: BufferedStandardStream::stdout(color_choice),
             },
@@ -123,6 +167,7 @@ impl TermLogger {
             level: log_level,
             config,
             streams: Mutex::new(streams),
+            mode,
         })
     }
 
@@ -201,7 +246,7 @@ impl TermLogger {
 
             let mut streams = self.streams.lock().unwrap();
 
-            if record.level() == Level::Error {
+            if self.mode.target(record.level()) == Target::Stderr {
                 self.try_log_term(record, &mut streams.err)
             } else {
                 self.try_log_term(record, &mut streams.out)
